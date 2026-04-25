@@ -6,6 +6,10 @@ import os
 load_dotenv()
 
 #%%
+
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+model = "openai/gpt-oss-120b"
+
 groceries = [
     {"name": "onion", "quantity": 1, "purchaseDate": "22-04-2026", "type": "veggies"},
     {"name": "banana", "quantity": 6, "purchaseDate": "21-04-2026", "type": "fruits"},
@@ -111,9 +115,9 @@ message =[
     }
 ]
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+
 response = client.chat.completions.create(
-    model = "openai/gpt-oss-120b",
+    model = model,
     messages = message,
     tools = tools,
     temperature=0.5,
@@ -153,7 +157,7 @@ for tool_call in tool_calls:
 while True:
     # 1. Send the current message history to the model
     response = client.chat.completions.create(
-        model="openai/gpt-oss-120b", # Use a supported Groq model
+        model=model, # Use a supported Groq model
         messages=message,
         tools=tools,
         tool_choice="auto"
