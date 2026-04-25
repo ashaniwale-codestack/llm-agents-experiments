@@ -1,1 +1,5 @@
 Groq
+langchain
+langchain-groq 
+langchain-community
+langgraph 
