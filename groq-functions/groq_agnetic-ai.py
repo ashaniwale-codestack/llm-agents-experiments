@@ -6,14 +6,12 @@ from langchain_core.tools import tool
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage
 from typing import TypedDict, Annotated
-import operator, math, json
-from datetime import datetime
+import operator, json
 from dotenv import load_dotenv
-from groq import Groq
-
+from langgraph.checkpoint.memory import MemorySaver 
 
 load_dotenv()
-
+memory = MemorySaver()
 
 CUSTOMER_DB = {
     "CUST-441": {
@@ -208,12 +206,12 @@ graph.add_conditional_edges(
 
 graph.add_edge("tools","agent") # after tools → back to agent
 
-app = graph.compile()
+app = graph.compile(checkpointer=memory)
 
 #%%
 # 5. Run
 
-def run(transaction:dict):
+def run(transaction:dict, thread_id:str):
     """
         This is where transaction data enters the system.
         We convert the dict into a natural language message for the agent.
@@ -231,12 +229,21 @@ def run(transaction:dict):
                 IMPORTANT: When calling get_fraud_score, use ONLY the HH:MM 
                 value for the time parameter — not the full date
                 """
-
+    config = {"configurable":{"thread_id":thread_id}}  # thread key
     print(f"Question: {message}")
-    result = app.invoke({"messages":[HumanMessage(content=message)]})
+    result = app.invoke({"messages":[HumanMessage(content=message)]}, config)
     print(f"result: {result['messages'][-1].content}")
+    print(f"Thread History: get_thread_history()")
 
-    
+def get_thread_history(thread_id:str):
+    config = {"configurable": {"thread_id": thread_id}}
+    state = app.get_state(config)
+    print(f"\n── History for {thread_id} ──")
+    for msg in state.values["messages"]:
+        role = msg.__class__.__name__.replace("Message", "")
+        content = msg.content or f"[tool_calls: {[t['name'] for t in msg.tool_calls]}]"
+        print(f"  {role:12} {content}")
+
 #%%
 run({
     "id": "TXN-9291",
@@ -246,6 +253,19 @@ run({
     "location": "Nigeria",
     "time": "03:14",
     "new_device": True
-})
+}, thread_id="thread-A")
 
+# %%
+run({
+    "id": "TXN-9292",
+    "customer_id": "CUST-441",
+    "amount": 45,
+    "merchant": "Expartio",
+    "location": "Germany",
+    "time": "11:14",
+    "new_device": False
+}, thread_id="thread-A")
+
+# %%
+get_thread_history("thread-A")
 # %%
